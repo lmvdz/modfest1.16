@@ -1,17 +1,22 @@
 package io.github.lmvdz;
 
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import io.github.lmvdz.mixin.ModelAccessor;
+import io.github.lmvdz.mixin.ModelPartAccessor;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import net.minecraft.client.model.Model;
+import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.SpriteIdentifier;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
+
+import static io.github.lmvdz.DynamicModelPart.defaultSeeds;
 
 /**
  * Give Model the ability to randomize different parts of each cuboid
@@ -37,19 +42,40 @@ public class DynamicModel extends Model {
 
     /**
      * Create a DynamicModel out of a regular Model
-     * @param model Model the model to copy into a DynamicModel
+     * @param mainModel Model the model to copy into a DynamicModel
      * @return DynamicModel instance, with data copied from a regular Model
      */
-    public DynamicModel from(Model model,SpriteIdentifier sprite) {
-        return new DynamicModel(((ModelAccessor)model).getLayerFactory(), sprite);
+    public static DynamicModel from(Model mainModel, ModelPart[] parts, SpriteIdentifier sprite) {
+        DynamicModel dynamicModel = new DynamicModel(((ModelAccessor)mainModel).getLayerFactory(), sprite);
+        return dynamicModel.withParts(ObjectArrayList.wrap((DynamicModelPart[])ObjectArrayList.wrap(parts).stream().map(part -> {
+            return from(dynamicModel, part);
+        }).toArray()));
+    }
+
+
+    public static DynamicModelPart from(DynamicModel dynamicModel, ModelPart modelPart) {
+        DynamicModelPart dynamicModelPart = new DynamicModelPart(((ModelPartAccessor)modelPart).getTextureWidth(), ((ModelPartAccessor)modelPart).getTextureHeight(), ((ModelPartAccessor)modelPart).getTextureOffsetU(), ((ModelPartAccessor)modelPart).getTextureOffsetV());
+        ObjectList<ModelPart.Cuboid> cuboids = ((ModelPartAccessor)modelPart).getCuboids();
+        for (int x = 0; x < cuboids.size(); x++ ) {
+            dynamicModelPart.cuboids.set(x, new DynamicModelPart.DynamicCuboid(dynamicModelPart, cuboids.get(x)));
+        }
+        dynamicModelPart.seeds = defaultSeeds(cuboids.size());
+        dynamicModelPart.rotation = new float[] {
+                ((ModelPartAccessor)modelPart).getPivotX(),
+                ((ModelPartAccessor)modelPart).getPivotY(),
+                ((ModelPartAccessor)modelPart).getPivotZ()
+        };
+        dynamicModelPart.layerFactory = ((ModelAccessor)dynamicModel).getLayerFactory();
+        dynamicModelPart.with(false, true, 1, true, false, 50, false, false, 0, true, false, 0, false, false, 0);
+        return dynamicModelPart;
     }
 
 
 
     /**
-     * Attach DyanmicModelParts to this instance of DynamicModel
+     * Attach DynamicModelParts to this instance of DynamicModel
      *
-     * @param modelParts
+     * @param modelParts list of dynamic model parts
      * @return DynamicModel instance
      */
     public DynamicModel withParts(ObjectList<DynamicModelPart> modelParts) {
@@ -72,28 +98,20 @@ public class DynamicModel extends Model {
     /** builds the cuboids */
     public void build() {
         if (modelParts.size() > 0) {
-            modelParts.forEach(modelPart -> {
-                modelPart.build();
-            });
+            modelParts.forEach(DynamicModelPart::build);
         }
         if (models.size() > 0) {
-            models.forEach(model -> {
-                model.build();
-            });
+            models.forEach(DynamicModel::build);
         }
     }
 
     /** builds the cuboids using the linked seeds */
     public void buildUsingSeeds() {
         if (modelParts.size() > 0) {
-            modelParts.forEach(modelPart -> {
-                modelPart.buildUsingSeeds();
-            });
+            modelParts.forEach(DynamicModelPart::buildUsingSeeds);
         }
         if (models.size() > 0) {
-            models.forEach(model -> {
-                model.buildUsingSeeds();
-            });
+            models.forEach(DynamicModel::buildUsingSeeds);
         }
     }
 
@@ -102,14 +120,10 @@ public class DynamicModel extends Model {
      */
     public void rebuild() {
         if (modelParts.size() > 0) {
-            modelParts.forEach(modelPart -> {
-                modelPart.rebuild();
-            });
+            modelParts.forEach(DynamicModelPart::rebuild);
         }
         if (models.size() > 0) {
-            models.forEach(model -> {
-                model.rebuild();
-            });
+            models.forEach(DynamicModel::rebuild);
         }
     }
 

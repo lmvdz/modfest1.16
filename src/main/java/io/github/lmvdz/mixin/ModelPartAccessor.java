@@ -27,5 +27,17 @@ public interface ModelPartAccessor {
     @Accessor
     float getPivotZ();
 
+    @Accessor
+    float getTextureWidth();
+
+    @Accessor
+    float getTextureHeight();
+
+    @Accessor
+    int getTextureOffsetU();
+
+    @Accessor
+    int getTextureOffsetV();
+
 
 }

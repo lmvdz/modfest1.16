@@ -1,8 +1,6 @@
 package io.github.lmvdz;
 
 import io.github.lmvdz.mixin.CuboidAccessor;
-import io.github.lmvdz.mixin.ModelAccessor;
-import io.github.lmvdz.mixin.ModelPartAccessor;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import it.unimi.dsi.fastutil.objects.ObjectListIterator;
@@ -20,6 +18,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Matrix3f;
 import net.minecraft.util.math.Matrix4f;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -52,9 +51,9 @@ public class DynamicModelPart extends ModelPart {
             new boolean[] {true, true, true, true, true, true, true, true};
 
     public static final float[] DEFAULT_MIN =
-            new float[] {-.0075F, -.0075F, -.0075F, -.0001F, -.0001F, -.0001F, -.0001F, -5F};
+            new float[] {-.0075F, -.0075F, -.0075F, -.0001F, -.0001F, -.0001F, -.001F, -5F};
     public static final float[] DEFAULT_MAX =
-            new float[] {.0075F, .0075F, .0075F, .0001F, .0001F, .0001F, .0001F, 5F};
+            new float[] {.0075F, .0075F, .0075F, .0001F, .0001F, .0001F, .001F, 5F};
     public static final float[] DEFAULT_LERP_PERCENT =
             new float[] {.15F, .15F, .15F, .15F, .15F, .15F, .15F, .15F};
     public static final float[] DEFAULT_APPLY_RANDOM_MULTIPLIER =
@@ -415,40 +414,6 @@ public class DynamicModelPart extends ModelPart {
     }
 
 
-    public DynamicModelPart from(DynamicModel dynamicModel, ModelPart modelPart) {
-        ObjectList<ModelPart.Cuboid> cuboids = ((ModelPartAccessor)modelPart).getCuboids();
-        float[] allCuboids = new float[cuboids.size() * 9];
-
-//        u[i] = (int) allCuboids[index];
-//        v[i] = (int) allCuboids[index + 1];
-//
-//        x[i] = allCuboids[index + 2];
-//        y[i] = allCuboids[index + 3];
-//        z[i] = allCuboids[index + 4];
-//
-//        sizeX[i] = (int) allCuboids[index + 5];
-//        sizeY[i] = (int) allCuboids[index + 6];
-//        sizeZ[i] = (int) allCuboids[index + 7];
-//
-//        extra[i] = allCuboids[index + 8];
-        for (int x = 0; x < cuboids.size(); x++ ) {
-            ModelPart.Quad[] quads = ((CuboidAccessor)cuboids.get(x)).getSides();
-            allCuboids[x] = cuboids.get(x);
-            allCuboids[x+1] = cuboids.get(x).minY;
-            allCuboids[x+2] = cuboids.get(x).minZ;
-            allCuboids[x+3] = cuboids.get(x).minX;
-            allCuboids[x] = cuboids.get(x).minX;
-            allCuboids[x] = cuboids.get(x).minX;
-            allCuboids[x] = cuboids.get(x).minX;
-        }
-        return generateModelPart(dynamicModel, allCuboids, new float[] {
-                ((ModelPartAccessor)modelPart).getPivotX(),
-                ((ModelPartAccessor)modelPart).getPivotY(),
-                ((ModelPartAccessor)modelPart).getPivotZ()
-        }, defaultSeeds(cuboids.size()), ((ModelAccessor)dynamicModel).getLayerFactory());
-    }
-
-
 
     /**
      * Creates a new DynamicModelPart given basic ModelPart data along with seeds, spriteId, and
@@ -617,9 +582,9 @@ public class DynamicModelPart extends ModelPart {
      * @param textureOffsetU int, textureOffsetU
      * @param textureOffsetV int, textureOffsetV
      */
-    public DynamicModelPart(int textureWidth, int textureHeight, int textureOffsetU,
+    public DynamicModelPart(float textureWidth, float textureHeight, int textureOffsetU,
                             int textureOffsetV) {
-        super(textureWidth, textureHeight, textureOffsetU, textureOffsetV);
+        super((int)textureWidth, (int)textureHeight, textureOffsetU, textureOffsetV);
         this.cuboids = new ObjectArrayList<DynamicModelPart.DynamicCuboid>();
         this.children = new ObjectArrayList<DynamicModelPart>();
     }
@@ -651,7 +616,7 @@ public class DynamicModelPart extends ModelPart {
      * The actual 'dynamic' part
      */
     @Environment(EnvType.CLIENT)
-    public class DynamicPart {
+    public static class DynamicPart {
 
 
         public DYNAMIC_ENUM dynamic; // key
@@ -910,10 +875,16 @@ public class DynamicModelPart extends ModelPart {
 
     @Environment(EnvType.CLIENT)
     /** DynamicModelPart.DynamicVertex == ModelPart.Vertex */
-    public class DynamicVertex {
+    public static class DynamicVertex {
         public final Vector3f pos;
         public final float u;
         public final float v;
+
+        public DynamicVertex(Vertex v) {
+            this.pos = v.pos;
+            this.u = v.u;
+            this.v = v.v;
+        }
 
 
         public DynamicVertex(Vector3f vector3f, float u, float v) {
@@ -932,11 +903,26 @@ public class DynamicModelPart extends ModelPart {
     }
     /** DynamicModelPart.DynamicQuad == ModelPart.Quad */
     @Environment(EnvType.CLIENT)
-    public class DynamicQuad {
+    public static class DynamicQuad {
 
         public final DynamicModelPart.DynamicVertex[] vertices;
         public final Vector3f direction;
         public final DynamicModelPart.DynamicCuboid parentCuboid;
+
+        public DynamicQuad(DynamicModelPart.DynamicCuboid parentCuboid, Quad quad) {
+            this.parentCuboid = parentCuboid;
+            this.vertices = new DynamicVertex[quad.vertices.length];
+            for(int x = 0; x < quad.vertices.length; x++) {
+                this.vertices[x] = new DynamicVertex(quad.vertices[x]);
+            }
+            this.direction = quad.direction;
+        }
+
+        public DynamicQuad(DynamicModelPart.DynamicCuboid parentCuboid, DynamicModelPart.DynamicVertex[] vertices, Vector3f direction) {
+            this.vertices = vertices;
+            this.parentCuboid = parentCuboid;
+            this.direction = direction;
+        }
 
         public DynamicQuad(DynamicModelPart.DynamicCuboid parentCuboid,
                            DynamicModelPart.DynamicVertex[] vertices, float u1, float v1, float u2, float v2,
@@ -965,10 +951,12 @@ public class DynamicModelPart extends ModelPart {
             }
 
         }
+
+
     }
 
     @Environment(EnvType.CLIENT)
-    public class DynamicCuboid extends Cuboid {
+    public static class DynamicCuboid extends Cuboid {
 
         public DynamicModelPart parentModelPart; // parent dynamic model part
         protected DynamicPart[] parts; // DynamicParts attached to this cuboid
@@ -1050,6 +1038,38 @@ public class DynamicModelPart extends ModelPart {
 
             this.set(parentModelPart, u, v, x, y, z, sizeX, sizeY, sizeZ, extraX, extraY, extraZ,
                     mirror, textureWidth, textureHeight, parts).build();
+        }
+
+        public DynamicCuboid(DynamicModelPart parent, Cuboid cuboid) {
+            super(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, 0, 0);
+            DynamicPart[] parts = new DynamicPart[DYNAMIC_ENUM_LENGTH];
+            for (int i = 0; i < DYNAMIC_ENUM_LENGTH; i++) {
+                parts[i] = new DynamicPart(DYNAMIC_ENUM.values()[i], true);
+            }
+            this.setParentModelPart(parent);
+            this.parts(parts);
+            Quad[] quads = ((CuboidAccessor)cuboid).getSides();
+            DynamicQuad[] dynamicSides = new DynamicQuad[quads.length];
+            for (int x = 0; x < quads.length; x++) {
+                dynamicSides[x] = new DynamicQuad(this, quads[x]);
+            }
+            this.withQuads(dynamicSides);
+        }
+
+        public DynamicCuboid(DynamicModelPart parent, DynamicQuad[] sides) {
+             super(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, 0, 0);
+            DynamicPart[] parts = new DynamicPart[DYNAMIC_ENUM_LENGTH];
+            for (int i = 0; i < DYNAMIC_ENUM_LENGTH; i++) {
+                parts[i] = new DynamicPart(DYNAMIC_ENUM.values()[i], true);
+            }
+            this.setParentModelPart(parent);
+            this.parts(parts);
+            this.withQuads(sides);
+        }
+
+        public DynamicCuboid withQuads(DynamicQuad[] sides) {
+            this.sides = sides;
+            return this;
         }
 
         /**
@@ -1960,7 +1980,6 @@ public class DynamicModelPart extends ModelPart {
      * @param u
      * @param v
      * @param rotation
-     * @param sprite
      * @param layerFactory
      * @return
      */
@@ -2052,14 +2071,13 @@ public class DynamicModelPart extends ModelPart {
      * @return ObjectList<DynamicPart[]>
      */
     public static ObjectList<DynamicPart[]> defaultSeeds(int numberOfCuboids) {
-        DynamicModelPart temp = new DynamicModelPart(0, 0, 0, 0);
         ObjectList<DynamicPart[]> SEEDS = new ObjectArrayList<DynamicPart[]>();
         for (int index = 0; index < numberOfCuboids; index++) {
             DynamicPart[] parts = new DynamicPart[DynamicModelPart.DYNAMIC_ENUM_LENGTH];
             for (int dEnumIndex =
                  0; dEnumIndex < DynamicModelPart.DYNAMIC_ENUM_LENGTH; dEnumIndex++) {
                 DYNAMIC_ENUM dEnum = DYNAMIC_ENUM.values()[dEnumIndex];
-                DynamicPart part = temp.new DynamicPart(dEnum,
+                DynamicPart part = new DynamicPart(dEnum,
                         (DEFAULT_STATE.length - 1 < dEnumIndex)
                                 ? DEFAULT_STATE[DEFAULT_STATE.length - 1]
                                 : DEFAULT_STATE[dEnumIndex],

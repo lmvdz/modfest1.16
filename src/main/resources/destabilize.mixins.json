@@ -6,10 +6,11 @@
   "mixins": [
   ],
   "client": [
-    "ExampleMixin",
+    "CuboidMixin",
+    "CuboidAccessor",
     "ModelAccessor",
     "ModelPartAccessor",
-    "CuboidAccessor",
+    "ModelPartMixin",
     "QuadAccessor"
   ],
   "injectors": {
