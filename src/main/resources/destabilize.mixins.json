@@ -4,14 +4,12 @@
   "package": "io.github.lmvdz.mixin",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
+
   ],
   "client": [
-    "CuboidMixin",
-    "CuboidAccessor",
-    "ModelAccessor",
-    "ModelPartAccessor",
-    "ModelPartMixin",
-    "QuadAccessor"
+    "RenderLayerMixin",
+    "WorldRendererMixin",
+    "WorldRendererAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
